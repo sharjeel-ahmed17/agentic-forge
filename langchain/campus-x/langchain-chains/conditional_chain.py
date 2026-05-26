@@ -1,16 +1,21 @@
 from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
+# from langchain_anthropic import ChatAnthropic
 from dotenv import load_dotenv
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain.schema.runnable import RunnableParallel, RunnableBranch, RunnableLambda
+from langchain_core.runnables import RunnableParallel, RunnableBranch, RunnableLambda
 from langchain_core.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 from typing import Literal
+import os
 
 load_dotenv()
 
-model = ChatOpenAI()
+model = ChatOpenAI(
+    model=os.getenv("MODEL"),
+    base_url=os.getenv("BASE_URL"),
+    api_key=os.getenv("API_KEY")
+)
 
 parser = StrOutputParser()
 
