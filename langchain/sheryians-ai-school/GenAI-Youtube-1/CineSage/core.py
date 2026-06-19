@@ -1,10 +1,10 @@
 from dotenv import load_dotenv
+load_dotenv()
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel
 from typing import List,Optional
 from langchain_core.output_parsers import PydanticOutputParser
 
-load_dotenv()
 from langchain_mistralai import ChatMistralAI
 
 

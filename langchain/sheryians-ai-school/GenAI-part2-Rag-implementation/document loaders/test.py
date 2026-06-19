@@ -1,4 +1,5 @@
-from langchain_community.document_loaders import TextLoader
+from langchain_community.document_loaders import TextLoader 
+
 
 from langchain_text_splitters import CharacterTextSplitter
 
@@ -8,7 +9,9 @@ splitter = CharacterTextSplitter(
     chunk_overlap=1
 )
 
-data = TextLoader("document loaders/notes.txt")
+data = TextLoader("notes.txt")
+
+# r"D:\generative-ai\langchain\sheryians-ai-school\GenAI-part2-Rag-implementation\document loaders\notes.txt"
 
 docs = data.load()
 
