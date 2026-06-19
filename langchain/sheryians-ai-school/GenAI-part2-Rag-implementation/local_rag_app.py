@@ -53,19 +53,18 @@ embedding_model = CohereEmbeddings(
     cohere_api_key=cohere_api_key
 )
 
-# vectorstore = FAISS(
-#     embedding_function=embedding_model
-
-# )
-vectorstore = FAISS.from_documents(
-    docs = list_of_docs,
-    embedding=embedding_model,
-    
-
+vectorstore = FAISS(
+    embedding_function=embedding_model
 )
+
+# vectorstore = FAISS.from_documents(
+#     docs = list_of_docs,
+#     embedding=embedding_model,
+# )
 
 # save vector db 
 vectorstore.save_local(VECTOR_DB_PATH)
+
 retriever = vectorstore.as_retriever(
     search_type = "mmr",
         search_kwargs = {

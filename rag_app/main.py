@@ -7,8 +7,7 @@
 # prompt send to llm 
 # conversation hist record 
 
-from langchain_community.document_loaders import TextLoader , PyPDFLoader , UnstructuredImageLoader , PyMuPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 from langchain_cohere import CohereEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.chat_models import init_chat_model
@@ -19,47 +18,18 @@ from config import model , base_url , api_key , cohere_api_key , cohere_model , 
 # memory 
 memory = ConversationBufferMemory()
 
-# ** load document text , image and pdf **
-
-# for text document
-text = TextLoader("notes.txt")
-text_docs = text.load()
-
-# for pdf text document 
-pdf = PyPDFLoader("GRU.pdf")
-pdf_docs = pdf.load()
-
-# for pdf +  image document 
-pdf_image = PyMuPDFLoader("GRU.pdf")
-pdf_image_docs = pdf.load()
-
-# image load 
-image = UnstructuredImageLoader("example.png",mode="elements")
-image_docs = image.load()
-
-# spliting anad chunking
-list_of_docs = [text_docs , pdf_docs , pdf_image_docs , image_docs]
-splitter = RecursiveCharacterTextSplitter(
-    separators="",
-    chunk_size = 1000,
-    chunk_overlap=1
-)
-chunks = splitter.split_documents(list_of_docs)
-
-
 # embedding model
 embedding_model = CohereEmbeddings(
     model=cohere_model,
     cohere_api_key=cohere_api_key
 )
-
-vectorstore = FAISS(
-    embedding_function=embedding_model
-
+vectorstore = FAISS.load_local(
+    VECTOR_DB_PATH,
+    embeddings=embedding_model,
+    allow_dangerous_deserialization=True
 )
 
-# save vector db 
-vectorstore.save_local(VECTOR_DB_PATH)
+
 retriever = vectorstore.as_retriever(
     search_type = "mmr",
         search_kwargs = {
@@ -69,38 +39,66 @@ retriever = vectorstore.as_retriever(
         }
 )
 # chat model llm
-model = init_chat_model(
-    model_provider="openai",
-    model=model,
-    base_url=base_url,
-    api_key=api_key
+model = init_chat_model(model_provider="openai",model=model,base_url=base_url,api_key=api_key)
+
+# prompt
+prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """You are a helpful AI assistant.
+            Use ONLY the provided context to answer the question.
+            If the answer is not present in the context,
+            say: "I could not find the answer in the document.
+            """
+        ),
+        (
+            "human",
+
+            """
+            Conversation History:{history}
+            
+            Context: {context}
+
+            Question: {question}
+
+            """
+        )
+    ]
 )
 
 
+print("Rag system created ")
+
+print("press 0 to exit ")
+
+while True:
+    query = input("You : ")
+    history = memory.load_memory_variables({})["history"]
+    if query == "0":
+        break 
+    
+    docs = retriever.invoke(query)
+
+    context = "\n\n".join(
+        [doc.page_content for doc in docs]
+    )
+    
+    final_prompt = prompt.invoke({
+        "context" :context,
+        "question": query,
+        "history" : history,
+    })
+    
+    response = model.invoke(final_prompt)
 
 
-# prompt
-prompt = ChatPromptTemplate.from_messages([
-    ("system" ,"you are helpful assistant."),
-    ("human" , "{history}\nUser : {input}")
-])
+    print(f"\n AI: {response.content}")
 
-# ! memory referce start
-# user_input = "My favorite language is Python"
-# history = memory.load_memory_variables({})["history"]
+# save memory conversation
+    memory.save_context(
+    {"input": query},
+    {"output": response.content}
+)
 
-# response = model.invoke(
-#     prompt.format_messages(
-#         history=history,
-#         input=user_input
-#     )
-# )
 
-# memory.save_context(
-#     {"input": user_input},
-#     {"output": response.content}
-# )
-
-# print(response.content)
-
-# ! memory referce end
