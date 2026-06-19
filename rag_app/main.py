@@ -53,14 +53,8 @@ embedding_model = CohereEmbeddings(
     cohere_api_key=cohere_api_key
 )
 
-# vectorstore = FAISS(
-#     embedding_function=embedding_model
-
-# )
-vectorstore = FAISS.from_documents(
-    docs = list_of_docs,
-    embedding=embedding_model,
-    
+vectorstore = FAISS(
+    embedding_function=embedding_model
 
 )
 
