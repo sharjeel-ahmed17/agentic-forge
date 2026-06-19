@@ -7,15 +7,17 @@
 # prompt send to llm 
 # conversation hist record 
 
-from langchain_community.document_loaders import TextLoader , PyPDFLoader , UnstructuredImageLoader
+from langchain_community.document_loaders import TextLoader , PyPDFLoader , UnstructuredImageLoader , PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_cohere import CohereEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.chat_models import init_chat_model
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_classic.memory import ConversationBufferMemory
-from config import model , base_url , api_key
+from config import model , base_url , api_key , cohere_api_key , cohere_model , VECTOR_DB_PATH
 
+# memory 
+memory = ConversationBufferMemory()
 
 # ** load document text , image and pdf **
 
@@ -27,29 +29,45 @@ text_docs = text.load()
 pdf = PyPDFLoader("GRU.pdf")
 pdf_docs = pdf.load()
 
-# image load 
-image = UnstructuredImageLoader(
-    "example.png",
-    mode="elements"
-)
-image_docs = image.load()
-# chunking
+# for pdf +  image document 
+pdf_image = PyMuPDFLoader("GRU.pdf")
+pdf_image_docs = pdf.load()
 
+# image load 
+image = UnstructuredImageLoader("example.png",mode="elements")
+image_docs = image.load()
+
+# spliting anad chunking
+list_of_docs = [text_docs , pdf_docs , pdf_image_docs , image_docs]
 splitter = RecursiveCharacterTextSplitter(
     separators="",
     chunk_size = 1000,
     chunk_overlap=1
 )
+chunks = splitter.split_documents(list_of_docs)
 
 
-# memory 
-memory = ConversationBufferMemory()
-# prompt
-prompt = ChatPromptTemplate.from_messages([
-    ("system" ,"you are helpful assistant."),
-    ("human" , "{history}\nUser : {input}")
-])
+# embedding model
+embedding_model = CohereEmbeddings(
+    model=cohere_model,
+    cohere_api_key=cohere_api_key
+)
 
+vectorstore = FAISS(
+    embedding_function=embedding_model
+
+)
+
+# save vector db 
+vectorstore.save_local(VECTOR_DB_PATH)
+retriever = vectorstore.as_retriever(
+    search_type = "mmr",
+        search_kwargs = {
+            "k" : 4,
+            "fetch_k":10,
+            "lambda_mult" :0.5
+        }
+)
 # chat model llm
 model = init_chat_model(
     model_provider="openai",
@@ -59,11 +77,13 @@ model = init_chat_model(
 )
 
 
-# embedding model
-embeddings = CohereEmbeddings(
-    model="embed-english-v3.0",
-)
 
+
+# prompt
+prompt = ChatPromptTemplate.from_messages([
+    ("system" ,"you are helpful assistant."),
+    ("human" , "{history}\nUser : {input}")
+])
 
 # ! memory referce start
 # user_input = "My favorite language is Python"
